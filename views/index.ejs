@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<head>
+  <title>DataSelfieApp</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"
+  integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+  crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js"
+   integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og=="
+   crossorigin=""></script>
+   <style media="screen">
+     #checkinMap {
+       height: 180px;
+     }
+   </style>
+</head>
+<body>
+  <script>
+    if ("geolocation" in navigator){
+       console.log("geolocation available");
+       navigator.geolocation.getCurrentPosition(async position => {
+         // Making a map and tiles
+         const mymap = L.map('checkinMap').setView([0, 0], 1);
+         const attribution =
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+         const tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+         const tiles = L.tileLayer(tileUrl, {attribution})
+         tiles.addTo(mymap);
+         let lat, long, weather, air;
+        const getData = async () => {
+
+          const checkins_apiUrl = "/allCheckins"
+          const checkins_response = await fetch (checkins_apiUrl);
+          const checkins_json = await checkins_response.json();
+          console.log(checkins_json);
+
+          for (item of checkins_json) {
+            const marker = L.marker([item.lat, item.long]).addTo(mymap);
+            let text = `The weather here at ${item.lat}&deg; latitude and ${item.lat}&deg; longitude
+                         is ${item.weather.summary} currently at ${item.weather.temperature}&deg; C.`;
+          if (item.air.value < 0){
+            text += `Oops No air quality reading.`
+          } else{ text += `The concentration of ${item.air.parameter}
+           i'm breathing is ${item.air.value}${item.air.unit} last read on ${item.air.lastUpdated}.`
+          }
+
+          marker.bindPopup(text).openPopup();
+         }
+        }
+         try{
+         // document.getElementById("latitude").textContent = lat;
+         // document.getElementById("longitude").textContent = long;
+
+         lat = position.coords.latitude;
+         long = position.coords.longitude;
+
+         const apiUrl = `/weather/${lat},${long}`;
+         // const apiUrl = "/weather";
+         const response = await fetch(apiUrl);
+         const json = await response.json();
+         console.log(json);
+         weather = json.weather.currently;
+         air = json.air_quality.results[0].measurements[0];
+         // document.getElementById("summary").textContent = weather.summary;
+         // document.getElementById("temperature").textContent = weather.temperature;
+         // document.getElementById("aq_parameter").textContent = air.parameter;
+         // document.getElementById("aq_value").textContent = air.value;
+         // document.getElementById("aq_units").textContent = air.unit;
+         // document.getElementById("aq_date").textContent = air.lastUpdated;
+         // console.log(position);
+         // getData()
+          document.getElementById("button").addEventListener("click", getData)
+         } catch (error){
+         air = {value: -1};
+           document.getElementById("button").addEventListener("click", getData)
+         // document.getElementById("aq_details").textContent = "Sorry no reading available for your country.";
+       }
+       const data = {lat, long, weather, air};
+       const options = {
+         method: "POST",
+         headers: {
+           "Content-Type": "application/json"
+         },
+         body: JSON.stringify(data)
+       };
+       const db_response = await fetch("/api", options);
+       const db_json = await db_response.json();
+       console.log(db_json);
+       })
+    } else {
+      console.log("geolocation not available");
+    }
+
+  </script>
+  <h1>The Weather Here Project</h1>
+  <div>
+    <a href="/">check in</a>
+    <button type="button" id="button">view checkins</button>
+    <p>
+
+    </p>
+  </div>
+  <div id="checkinMap">
+
+  </div>
+</body>
